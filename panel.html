@@ -125,6 +125,9 @@ a.btn{text-decoration:none;color:inherit}
 .queue{background:var(--bg);border-radius:8px;padding:14px}
 .queue b{font-size:17px}
 
+.hchip.sync:empty{display:none}
+.hchip.sync.busy{color:#fff;border-color:rgba(255,255,255,.6)}
+.row.tmp{opacity:.6}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:60;max-width:calc(100% - 32px)}
 </style>
 </head>
@@ -152,6 +155,7 @@ a.btn{text-decoration:none;color:inherit}
       </div>
       <div class="hchips">
         <span class="hchip">Faltan <b id="d-boda">–</b> días para la boda</span>
+        <span class="hchip sync" id="sync" aria-live="polite"></span>
         <span class="hchip" id="chip-lim">Confirmaciones hasta el 16 nov · <b id="d-lim">–</b> días</span>
       </div>
     </div>
@@ -289,22 +293,34 @@ function openWA(url){ const a=document.createElement('a'); a.href=url; a.target=
 
 /* ---------- llamadas ---------- */
 async function call(p){ const r=await API.call(Object.assign({pin:PIN},p)); if(!r.ok) throw new Error(r.error||'error'); return r; }
+/* Sincronización: los cambios se ven al instante y se guardan en segundo plano */
+let pending=0, lastSync=0;
+function sync(d){ pending=Math.max(0,pending+d); const el=$('#sync'); if(!el) return;
+  el.textContent=pending?'Guardando…':(lastSync?'Al día ✓':''); el.classList.toggle('busy',!!pending); }
+function cacheSave(){ try{ localStorage.setItem('boda-cd-cache',JSON.stringify(guests.filter(g=>!g._tmp))); }catch(e){} }
+function cacheLoad(){ try{ const c=JSON.parse(localStorage.getItem('boda-cd-cache')); return Array.isArray(c)?c:null; }catch(e){ return null; } }
 async function load(quiet){
-  try{ const r=await call({action:'list'}); guests=r.guests; render(); if(!quiet) toast('Lista actualizada'); }
-  catch(e){ toast(e.message==='pin_incorrecto'?'El PIN cambió. Vuelve a entrar.':'No se pudo cargar la lista. Revisa la conexión.'); }
+  sync(1);
+  try{ await chain; const r=await call({action:'list'}); const tmps=guests.filter(g=>g._tmp); guests=r.guests.concat(tmps); lastSync=Date.now(); cacheSave(); render(); if(!quiet) toast('Lista actualizada'); }
+  catch(e){ toast(e.message==='pin_incorrecto'?'El PIN cambió. Vuelve a entrar.':'No se pudo actualizar la lista. Revisa la conexión.'); }
+  sync(-1);
 }
-function upsert(g){ const i=guests.findIndex(x=>x.id===g.id); if(i<0) guests.push(g); else guests[i]=Object.assign(guests[i],g); }
+function upsert(g){ const i=guests.findIndex(x=>x.id===g.id); if(i<0) guests.push(g); else guests[i]=Object.assign(guests[i],g); cacheSave(); }
+/* Cola: las escrituras van una tras otra para no chocar en la hoja */
+let chain=Promise.resolve();
+function bg(p,onOk,onFail){ sync(1); chain=chain.then(()=>call(p)).then(r=>{ if(onOk) onOk(r); lastSync=Date.now(); }).catch(e=>{ if(onFail) onFail(e); }).finally(()=>sync(-1)); return chain; }
 
 /* ---------- login ---------- */
 if(API.demo){ $('#ldemo').hidden=false; $('#demobar').hidden=false; }
 $('#lform').addEventListener('submit',async e=>{
   e.preventDefault(); const pin=$('#pin').value.trim(); $('#lerr').hidden=true; $('#lbtn').disabled=true;
-  try{ PIN=pin; await call({action:'login'}); try{sessionStorage.setItem('boda-cd-pin',pin);}catch(x){} enter(); }
+  $('#lbtn').textContent='Entrando…';
+  try{ PIN=pin; const r=await call({action:'list'}); guests=r.guests; lastSync=Date.now(); cacheSave(); try{sessionStorage.setItem('boda-cd-pin',pin);}catch(x){} enter(true); }
   catch(x){ $('#lerr').textContent=x.message==='pin_incorrecto'?'PIN incorrecto.':'No hay conexión con la hoja. Revisa apiUrl en config.js.'; $('#lerr').hidden=false; }
-  $('#lbtn').disabled=false;
+  $('#lbtn').disabled=false; $('#lbtn').textContent='Entrar';
 });
-async function enter(){ $('#login').hidden=true; $('#app').hidden=false; $('#genlink').href=baseUrl(); $('#genlink').textContent=baseUrl(); await load(true); }
-try{ const s=sessionStorage.getItem('boda-cd-pin'); if(s){ PIN=s; call({action:'login'}).then(enter).catch(()=>{}); } }catch(e){}
+function enter(loaded){ $('#login').hidden=true; $('#app').hidden=false; $('#genlink').href=baseUrl(); $('#genlink').textContent=baseUrl(); render(); sync(0); if(!loaded) load(true); }
+try{ const s=sessionStorage.getItem('boda-cd-pin'); if(s){ PIN=s; const c=cacheLoad(); if(c){ guests=c; enter(false); } else call({action:'list'}).then(r=>{ guests=r.guests; lastSync=Date.now(); cacheSave(); enter(true); }).catch(()=>{}); } }catch(e){}
 
 /* ---------- render ---------- */
 function render(){
@@ -356,6 +372,7 @@ function render(){
   $('#msgs').innerHTML=ms.map(g=>'<li><b>'+esc(g.nombre)+'</b>'+esc(g.mensaje)+'</li>').join('');
 }
 function rowHTML(g){
+  if(g._tmp) return '<div class="row tmp" data-id="'+esc(g.id)+'"><div><div class="nm">'+esc(g.nombre)+'</div><div class="meta">'+[g.grupo,prettyPhone(g.telefono)||'sin celular'].filter(Boolean).map(esc).join(' · ')+'</div></div><div class="cup"><b>'+(g.cupos||'—')+'</b><small>cupos</small></div><div><span class="pill" style="--c:var(--idle);--c-bg:var(--idle-bg)">Guardando…</span></div><div class="acts"></div></div>';
   const s=state(g), st=ST[s];
   const trail=[];
   if(g.enviado) trail.push('Enviada '+fdate(g.enviado));
@@ -387,14 +404,17 @@ $('#list').addEventListener('click',async e=>{
   if(a==='copy'){ const t=link(g); try{ await navigator.clipboard.writeText(t); toast('Enlace copiado'); }catch(x){ prompt2(t); } }
   if(a==='edit') openGuest(g);
   if(a==='del'){
-    if(b.dataset.sure){ try{ await call({action:'delete',id}); guests=guests.filter(x=>x.id!==id); render(); toast('Invitado eliminado'); }catch(x){ toast('No se pudo eliminar'); } }
+    if(b.dataset.sure){ const backup=guests.slice(); guests=guests.filter(x=>x.id!==id); cacheSave(); render(); toast('Invitado eliminado');
+      bg({action:'delete',id},null,()=>{ guests=backup; cacheSave(); render(); toast('No se pudo eliminar. Revisa la conexión.'); }); }
     else { b.dataset.sure='1'; b.textContent='¿Seguro? Toca otra vez'; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.sure; b.textContent='Eliminar'; } },3500); }
   }
 });
 function prompt2(t){ const i=document.createElement('input'); i.value=t; document.body.appendChild(i); i.select(); try{document.execCommand('copy');toast('Enlace copiado');}catch(x){toast(t);} i.remove(); }
-async function mark(g,what){
-  try{ const r=await call({action:'mark',id:g.id,what}); upsert(r.guest); render(); toast(what==='enviado'?'Marcada como enviada':'Recordatorio registrado'); }
-  catch(x){ toast('No se pudo registrar el envío'); }
+function mark(g,what){
+  const before=Object.assign({},g), t=new Date().toISOString();
+  if(what==='enviado') g.enviado=t; else if(what==='recordado'){ g.recordado=t; g.recordatorios=(g.recordatorios||0)+1; }
+  cacheSave(); render(); toast(what==='enviado'?'Marcada como enviada':'Recordatorio registrado');
+  bg({action:'mark',id:g.id,what},r=>{ upsert(r.guest); render(); },()=>{ Object.assign(g,before); cacheSave(); render(); toast('No se pudo registrar el envío. Revisa la conexión.'); });
 }
 
 /* ---------- modales ---------- */
@@ -416,12 +436,25 @@ async function saveGuest(send){
   const data={id:editing?editing.id:'',nombre:$('#g-nombre').value.trim(),telefono:$('#g-tel').value,cupos:$('#g-cupos').value,grupo:$('#g-grupo').value.trim(),mesa:$('#g-mesa').value.trim()};
   if(!data.nombre){ $('#g-err').textContent='Escribe el nombre del invitado.'; $('#g-err').hidden=false; return; }
   if(send && !phone57(data.telefono)){ $('#g-err').textContent='Para enviar por WhatsApp hace falta el celular.'; $('#g-err').hidden=false; return; }
-  const w=send?window.open('about:blank','_blank'):null;
+  if(!send){
+    closeM();
+    if(editing){ const g=editing, before=Object.assign({},g);
+      Object.assign(g,{nombre:data.nombre,telefono:String(data.telefono).replace(/\D/g,''),cupos:Math.max(1,Number(data.cupos)||1),grupo:data.grupo,mesa:data.mesa}); cacheSave(); render(); toast('Cambios guardados');
+      bg({action:'save',guest:data},r=>{ upsert(r.guest); render(); },()=>{ Object.assign(g,before); cacheSave(); render(); toast('No se pudieron guardar los cambios. Revisa la conexión.'); });
+    } else { const tmp={_tmp:1,id:'tmp'+Date.now(),nombre:data.nombre,telefono:String(data.telefono).replace(/\D/g,''),cupos:Number(data.cupos)||1,grupo:data.grupo};
+      guests.push(tmp); render(); toast('Invitado agregado');
+      bg({action:'save',guest:data},r=>{ guests=guests.filter(x=>x!==tmp); upsert(r.guest); render(); },()=>{ guests=guests.filter(x=>x!==tmp); render(); toast('No se pudo agregar a '+data.nombre+'. Revisa la conexión.'); });
+    }
+    return;
+  }
+  const w=window.open('about:blank','_blank');
+  const btn=$('#g-savesend'); btn.disabled=true; btn.textContent='Guardando…';
   try{
-    const r=await call({action:'save',guest:data}); upsert(r.guest); closeM(); render();
-    if(send){ const url=wa(r.guest,'inv'); if(w) w.location=url; else openWA(url); mark(r.guest,'enviado'); }
-    else toast(editing?'Cambios guardados':'Invitado agregado');
+    await chain; sync(1);
+    const r=await call({action:'save',guest:data}); upsert(r.guest); closeM(); render(); lastSync=Date.now();
+    const url=wa(r.guest,'inv'); if(w) w.location=url; else openWA(url); mark(r.guest,'enviado');
   }catch(x){ if(w) w.close(); $('#g-err').textContent='No se pudo guardar. Revisa la conexión.'; $('#g-err').hidden=false; }
+  finally{ sync(-1); btn.disabled=false; btn.textContent='Guardar y enviar por WhatsApp'; }
 }
 $('#gform').addEventListener('submit',e=>{e.preventDefault();saveGuest(false);});
 $('#g-savesend').onclick=()=>saveGuest(true);
@@ -437,10 +470,10 @@ $('#addmany').onclick=()=>{ $('#m-text').value=''; $('#m-prev').textContent=''; 
 $('#m-text').addEventListener('input',()=>{ const n=parseMany(); $('#m-prev').textContent=n.length?n.length+' invitados listos para agregar · '+n.reduce((a,g)=>a+(Number(g.cupos)||1),0)+' cupos':''; });
 $('#mform').addEventListener('submit',async e=>{
   e.preventDefault(); const list=parseMany(); if(!list.length) return;
-  $('#m-save').disabled=true;
-  try{ const r=await call({action:'bulk',guests:list}); r.guests.forEach(upsert); closeM(); render(); toast(r.guests.length+' invitados agregados'); }
-  catch(x){ toast('No se pudieron agregar. Revisa la conexión.'); }
-  $('#m-save').disabled=false;
+  const tmps=list.map((g,i)=>({_tmp:1,id:'tmp'+Date.now()+'-'+i,nombre:g.nombre,telefono:String(g.telefono).replace(/\D/g,''),cupos:Number(g.cupos)||1,grupo:g.grupo}));
+  guests=guests.concat(tmps); closeM(); render(); toast('Agregando '+list.length+' invitados…');
+  bg({action:'bulk',guests:list},r=>{ guests=guests.filter(x=>!tmps.includes(x)); r.guests.forEach(upsert); render(); toast(r.guests.length+' invitados agregados'); },
+     ()=>{ guests=guests.filter(x=>!tmps.includes(x)); render(); toast('No se pudieron agregar. Revisa la conexión.'); });
 });
 
 /* cola de recordatorios */
@@ -469,7 +502,8 @@ $('#export').onclick=()=>{
 };
 
 $('#resetdemo').onclick=()=>{ API.resetDemo(); load(); };
-setInterval(()=>{ if(!$('#app').hidden && document.visibilityState==='visible' && $$('.modal').every(m=>m.hidden)) load(true); },60000);
+setInterval(()=>{ if(!$('#app').hidden && !pending && document.visibilityState==='visible' && $$('.modal').every(m=>m.hidden)) load(true); },60000);
+window.addEventListener('beforeunload',e=>{ if(pending){ e.preventDefault(); e.returnValue=''; } });
 })();
 </script>
 </body>
