@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Panel · Camilo &amp; Doralice</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#3F4729">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Allura&family=Marcellus&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: tablero de trabajo sobre papel claro; resumen arriba, embudo de estado, filtros y lista de invitados con acciones. */
+:root{
+  --olive:#5F6A3F; --olive-deep:#3F4729; --olive-soft:#A9B08A; --beige:#EDE5D3;
+  --bg:#F7F4EC; --card:#FFFFFF; --ink:#262A1C; --muted:#6C705C; --line:#E3DDCC;
+  --ok:#3E7B4F; --ok-bg:#E3F0E5; --warn:#A06A12; --warn-bg:#FBEFD8; --no:#9A4B3C; --no-bg:#F6E3DF; --info:#3D5F86; --info-bg:#E2EBF5; --idle:#6C705C; --idle-bg:#EEEBE2;
+  --wa:#1F9D55;
+  --f-script:"Allura","Brush Script MT",cursive; --f-caps:"Marcellus",Georgia,serif; --f-ui:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-ui);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--olive);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* Login */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--olive-deep);padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.lbox{background:var(--card);border-radius:10px;padding:32px 26px;width:min(100%,380px);text-align:center;display:flex;flex-direction:column;gap:14px}
+.lbox .n{font-family:var(--f-script);font-size:46px;line-height:1;color:var(--olive-deep)}
+.lbox input{text-align:center;font-size:24px;letter-spacing:.4em;padding:12px;border:1px solid var(--line);border-radius:8px}
+.err{color:var(--no);margin:0;font-size:14px}
+
+/* Header */
+header{background:var(--olive-deep);color:#fff;padding-top:calc(18px + env(safe-area-inset-top,0px));padding-bottom:18px}
+header .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+header h1{margin:0;font-family:var(--f-script);font-weight:400;font-size:40px;line-height:1}
+header .sub{font-family:var(--f-caps);letter-spacing:.18em;font-size:12px;text-transform:uppercase;color:var(--beige)}
+.hchips{display:flex;gap:8px;flex-wrap:wrap}
+.hchip{border:1px solid rgba(237,229,211,.35);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--beige)}
+.hchip b{color:#fff;font-variant-numeric:tabular-nums}
+.demo{background:#FBEFD8;color:#6B4A0E;font-size:13px;padding:8px 0}
+
+main{padding-block:22px 80px;display:flex;flex-direction:column;gap:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.stat{padding:14px 14px 12px;border-radius:10px;background:var(--card);border:1px solid var(--line);text-align:left}
+.stat small{display:block;color:var(--muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.stat b{display:block;font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.stat span{font-size:12.5px;color:var(--muted)}
+.stat.ok b{color:var(--ok)} .stat.no b{color:var(--no)} .stat.warn b{color:var(--warn)}
+@media (max-width:860px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:460px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--idle-bg);margin-top:4px}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;background:var(--c)}
+.funnel{padding:16px 18px}
+.funnel h3{margin:0;font-size:14px}
+
+/* Toolbar */
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:14px;white-space:nowrap}
+.btn:hover{border-color:var(--olive-soft)}
+.btn.pri{background:var(--olive);border-color:var(--olive);color:#fff}
+.btn.pri:hover{background:var(--olive-deep)}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
+.btn.sm{min-height:34px;padding:0 10px;font-size:13px}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--no)}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn svg{width:16px;height:16px;flex:none}
+a.btn{text-decoration:none;color:inherit}
+.spacer{flex:1}
+.search{min-width:0;flex:1 1 160px;max-width:300px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+
+.filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.filters button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;white-space:nowrap}
+.filters button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.filters em{font-style:normal;opacity:.65;margin-left:4px;font-variant-numeric:tabular-nums}
+
+/* Lista */
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:minmax(0,1.5fr) 70px minmax(0,1.6fr) auto;gap:14px;align-items:center;padding:14px 16px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .nm{font-weight:700;font-size:15.5px;overflow-wrap:anywhere}
+.row .meta{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.row .cup{font-variant-numeric:tabular-nums;text-align:center}
+.row .cup b{display:block;font-size:18px}
+.row .cup small{font-size:11.5px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:700;background:var(--c-bg);color:var(--c)}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.trail{font-size:12.5px;color:var(--muted);margin-top:4px}
+.msg{font-size:13px;margin-top:4px;font-style:italic;color:var(--ink);overflow-wrap:anywhere}
+.acts{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+@media (max-width:760px){
+  .row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"a b" "c c" "d d"}
+  .row>:nth-child(1){grid-area:a}.row>:nth-child(2){grid-area:b}.row>:nth-child(3){grid-area:c}.row>:nth-child(4){grid-area:d;justify-content:flex-start}
+}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+
+/* Mensajes */
+.msgs{padding:16px 18px}
+.msgs h3,.sect h3{margin:0 0 10px;font-size:15px}
+.msgs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.msgs li{background:var(--bg);border-radius:8px;padding:12px 14px;font-size:14px}
+.msgs li b{display:block;font-size:13px;color:var(--olive-deep);margin-bottom:2px}
+
+/* Modales */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(30,33,20,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:600px){.modal{align-items:center}}
+.mbox{background:var(--card);border-radius:12px;width:min(100%,520px);max-height:90vh;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:14px}
+.mbox h2{margin:0;font-size:19px}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.field textarea{min-height:140px;resize:vertical;font-size:14px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mfoot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.queue{background:var(--bg);border-radius:8px;padding:14px}
+.queue b{font-size:17px}
+
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:60;max-width:calc(100% - 32px)}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<section id="login">
+  <form class="lbox" id="lform">
+    <div class="n">Camilo &amp; Doralice</div>
+    <div style="font-family:var(--f-caps);letter-spacing:.2em;font-size:12px;color:var(--muted)">PANEL DE INVITADOS</div>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN" aria-label="PIN del panel">
+    <p class="err" id="lerr" hidden></p>
+    <button class="btn pri" style="justify-content:center" id="lbtn">Entrar</button>
+    <p class="hint" id="ldemo" hidden>Modo demo: el PIN es 1812.</p>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <div class="demo" id="demobar" hidden><div class="wrap">Modo demo: los invitados que ves son de ejemplo y se guardan solo en este navegador. Cuando conectes Google Sheets verás los reales. <button class="btn sm ghost" id="resetdemo" type="button">Restablecer ejemplo</button></div></div>
+  <header>
+    <div class="wrap">
+      <div>
+        <h1>Camilo &amp; Doralice</h1>
+        <div class="sub">Panel de invitados · 18 de diciembre de 2026</div>
+      </div>
+      <div class="hchips">
+        <span class="hchip">Faltan <b id="d-boda">–</b> días para la boda</span>
+        <span class="hchip" id="chip-lim">Confirmaciones hasta el 16 nov · <b id="d-lim">–</b> días</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="stats" id="stats"></div>
+
+    <div class="card funnel">
+      <h3>Personas invitadas según su respuesta</h3>
+      <div class="bar" id="bar"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="tools">
+      <button class="btn pri" id="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Agregar invitado</button>
+      <button class="btn" id="addmany">Agregar varios</button>
+      <button class="btn wa" id="queue-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7a11.6 11.6 0 0 1-4.5-4c-.4-.5-1-1.6-1-2.6s.6-1.6.8-1.8c.2-.2.5-.3.6-.3h.5c.1 0 .4 0 .6.4l.8 2c.1.2.1.4 0 .5l-.4.6c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg><span id="queue-lbl">Recordar pendientes</span></button>
+      <span class="spacer"></span>
+      <input class="search" id="q" type="search" placeholder="Buscar por nombre, grupo o celular" aria-label="Buscar invitado">
+      <button class="btn" id="refresh" title="Actualizar">Actualizar</button>
+      <button class="btn" id="export">Exportar CSV</button>
+      <button class="btn" id="tpl">Mensajes</button>
+    </div>
+
+    <div class="filters" id="filters" role="toolbar" aria-label="Filtrar invitados"></div>
+
+    <div class="card list" id="list"></div>
+
+    <div class="card msgs" id="msgs-card" hidden>
+      <h3>Mensajes de los invitados</h3>
+      <ul id="msgs"></ul>
+    </div>
+
+    <p class="hint">Enlace general (sin nombre) para compartir en grupos: <a id="genlink" target="_blank" rel="noopener"></a>. Quien confirme desde ahí aparece en la lista con el grupo “Enlace general”.</p>
+  </main>
+</div>
+
+<!-- Modal: invitado -->
+<div class="modal" id="m-guest" hidden>
+  <form class="mbox" id="gform">
+    <h2 id="g-title">Agregar invitado</h2>
+    <div class="field"><label for="g-nombre">Nombre como aparecerá en la invitación</label><input id="g-nombre" required placeholder="Familia Rodríguez Pérez"></div>
+    <div class="two">
+      <div class="field"><label for="g-tel">Celular (WhatsApp)</label><input id="g-tel" inputmode="tel" placeholder="300 123 4567"></div>
+      <div class="field"><label for="g-cupos">Cupos</label><input id="g-cupos" type="number" min="1" max="30" value="2"></div>
+    </div>
+    <div class="two">
+      <div class="field"><label for="g-grupo">Grupo</label><input id="g-grupo" list="grupos" placeholder="Familia novia"><datalist id="grupos"></datalist></div>
+      <div class="field"><label for="g-mesa">Mesa (opcional)</label><input id="g-mesa" placeholder="5"></div>
+    </div>
+    <p class="err" id="g-err" hidden></p>
+    <div class="mfoot">
+      <button type="button" class="btn ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn" id="g-save">Guardar</button>
+      <button type="button" class="btn wa" id="g-savesend">Guardar y enviar por WhatsApp</button>
+    </div>
+  </form>
+</div>
+
+<!-- Modal: varios -->
+<div class="modal" id="m-many" hidden>
+  <form class="mbox" id="mform">
+    <h2>Agregar varios invitados</h2>
+    <p class="hint">Un invitado por línea: <b>Nombre, celular, cupos, grupo</b>. Solo el nombre es obligatorio. Puedes pegar las columnas desde Excel o Google Sheets.</p>
+    <div class="field"><label for="m-text">Lista</label><textarea id="m-text" placeholder="Familia Ortiz Motta, 3001234567, 4, Familia novio&#10;Tía Marleny, 3109876543, 2, Familia novia"></textarea></div>
+    <p class="hint" id="m-prev"></p>
+    <div class="mfoot"><button type="button" class="btn ghost" data-close>Cancelar</button><button type="submit" class="btn pri" id="m-save">Agregar</button></div>
+  </form>
+</div>
+
+<!-- Modal: cola de recordatorios -->
+<div class="modal" id="m-queue" hidden>
+  <div class="mbox">
+    <h2>Recordar a los pendientes</h2>
+    <p class="hint">Personas que recibieron la invitación y aún no responden. Cada botón abre WhatsApp con el mensaje listo; solo presiona enviar y vuelve aquí para el siguiente.</p>
+    <div class="queue" id="q-box"></div>
+    <div class="mfoot"><button type="button" class="btn ghost" data-close>Cerrar</button><button type="button" class="btn" id="q-skip">Saltar</button><button type="button" class="btn wa" id="q-go">Enviar recordatorio</button></div>
+  </div>
+</div>
+
+<!-- Modal: plantillas -->
+<div class="modal" id="m-tpl" hidden>
+  <form class="mbox" id="tform">
+    <h2>Mensajes de WhatsApp</h2>
+    <p class="hint">Puedes usar {nombre}, {enlace}, {cupos} y {fecha_limite}. Se guardan en este dispositivo.</p>
+    <div class="field"><label for="t-inv">Invitación</label><textarea id="t-inv"></textarea></div>
+    <div class="field"><label for="t-rec">Recordatorio</label><textarea id="t-rec"></textarea></div>
+    <div class="mfoot"><button type="button" class="btn ghost" id="t-reset">Restablecer</button><button type="button" class="btn ghost" data-close>Cancelar</button><button type="submit" class="btn pri">Guardar</button></div>
+  </form>
+</div>
+
+<div id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+(function(){
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const API=window.BodaAPI, CFG=window.BODA_CONFIG||{};
+const BODA=new Date('2026-12-18T16:15:00-05:00'), LIMITE=new Date('2026-11-16T23:59:59-05:00');
+let PIN='', guests=[], filter='todos', editing=null;
+
+/* ---------- utilidades ---------- */
+function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fdate(iso){ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; return d.toLocaleDateString('es-CO',{day:'numeric',month:'short'})+' '+d.toLocaleTimeString('es-CO',{hour:'numeric',minute:'2-digit'}); }
+function phone57(t){ let d=String(t||'').replace(/\D/g,''); if(d.length===10&&d[0]==='3') d='57'+d; return d; }
+function prettyPhone(t){ const d=String(t||'').replace(/\D/g,''); const m=d.match(/^57(3\d{2})(\d{3})(\d{4})$/)||d.match(/^(3\d{2})(\d{3})(\d{4})$/); return m?m[1]+' '+m[2]+' '+m[3]:d; }
+function baseUrl(){ if(CFG.siteUrl && !API.demo) return CFG.siteUrl.replace(/\/?$/,'/'); return location.href.split('#')[0].split('?')[0].replace(/panel\.html$/,''); }
+function link(g){ return baseUrl()+'#'+g.id; }
+function daysTo(d){ return Math.ceil((d-new Date())/86400000); }
+
+/* Estado de cada invitado */
+const ST={
+  nuevo:   {t:'Sin enviar',          c:'var(--idle)',bg:'var(--idle-bg)'},
+  enviada: {t:'Enviada · sin abrir', c:'var(--info)',bg:'var(--info-bg)'},
+  abierta: {t:'Abrió · sin responder',c:'var(--warn)',bg:'var(--warn-bg)'},
+  si:      {t:'Asistirá',            c:'var(--ok)',  bg:'var(--ok-bg)'},
+  no:      {t:'No asistirá',         c:'var(--no)',  bg:'var(--no-bg)'}
+};
+function state(g){ if(g.respuesta==='si') return 'si'; if(g.respuesta==='no') return 'no'; if(g.aperturas>0) return 'abierta'; if(g.enviado) return 'enviada'; return 'nuevo'; }
+function pendiente(g){ const s=state(g); return (s==='abierta'||s==='enviada') && g.telefono; }
+
+/* ---------- plantillas ---------- */
+const TPL_DEF={
+  inv:'Hola {nombre} 🤍\n\nCon mucha alegría queremos invitarte a nuestra boda.\n\n💍 Camilo & Doralice\n📅 Viernes 18 de diciembre de 2026 · 4:15 p. m.\n📍 Hacienda Aleon, Puerto Salgar\n\nAbre tu invitación aquí:\n{enlace}\n\nPor favor confirma tu asistencia antes del {fecha_limite}. ¡Te esperamos!',
+  rec:'Hola {nombre} 🤍\n\nTe recordamos con cariño confirmar tu asistencia a nuestra boda el viernes 18 de diciembre. Es muy fácil, desde tu invitación:\n{enlace}\n\nTenemos plazo hasta el {fecha_limite}. ¡Gracias!\nCamilo & Doralice'
+};
+let TPL=Object.assign({},TPL_DEF);
+try{ Object.assign(TPL, JSON.parse(localStorage.getItem('boda-cd-tpl'))||{}); }catch(e){}
+function fill(t,g){ return t.replace(/\{nombre\}/g,g.nombre).replace(/\{enlace\}/g,link(g)).replace(/\{cupos\}/g,g.cupos).replace(/\{fecha_limite\}/g,CFG.fechaLimite||'16 de noviembre de 2026'); }
+function wa(g,kind){ return 'https://wa.me/'+phone57(g.telefono)+'?text='+encodeURIComponent(fill(kind==='rec'?TPL.rec:TPL.inv,g)); }
+function openWA(url){ const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+
+/* ---------- llamadas ---------- */
+async function call(p){ const r=await API.call(Object.assign({pin:PIN},p)); if(!r.ok) throw new Error(r.error||'error'); return r; }
+async function load(quiet){
+  try{ const r=await call({action:'list'}); guests=r.guests; render(); if(!quiet) toast('Lista actualizada'); }
+  catch(e){ toast(e.message==='pin_incorrecto'?'El PIN cambió. Vuelve a entrar.':'No se pudo cargar la lista. Revisa la conexión.'); }
+}
+function upsert(g){ const i=guests.findIndex(x=>x.id===g.id); if(i<0) guests.push(g); else guests[i]=Object.assign(guests[i],g); }
+
+/* ---------- login ---------- */
+if(API.demo){ $('#ldemo').hidden=false; $('#demobar').hidden=false; }
+$('#lform').addEventListener('submit',async e=>{
+  e.preventDefault(); const pin=$('#pin').value.trim(); $('#lerr').hidden=true; $('#lbtn').disabled=true;
+  try{ PIN=pin; await call({action:'login'}); try{sessionStorage.setItem('boda-cd-pin',pin);}catch(x){} enter(); }
+  catch(x){ $('#lerr').textContent=x.message==='pin_incorrecto'?'PIN incorrecto.':'No hay conexión con la hoja. Revisa apiUrl en config.js.'; $('#lerr').hidden=false; }
+  $('#lbtn').disabled=false;
+});
+async function enter(){ $('#login').hidden=true; $('#app').hidden=false; $('#genlink').href=baseUrl(); $('#genlink').textContent=baseUrl(); await load(true); }
+try{ const s=sessionStorage.getItem('boda-cd-pin'); if(s){ PIN=s; call({action:'login'}).then(enter).catch(()=>{}); } }catch(e){}
+
+/* ---------- render ---------- */
+function render(){
+  const db=daysTo(BODA), dl=daysTo(LIMITE);
+  $('#d-boda').textContent=Math.max(0,db);
+  $('#d-lim').textContent=Math.max(0,dl); if(dl<0) $('#chip-lim').innerHTML='Plazo de confirmación <b>cerrado</b>';
+
+  const by={nuevo:[],enviada:[],abierta:[],si:[],no:[]}; guests.forEach(g=>by[state(g)].push(g));
+  const cupos=guests.reduce((a,g)=>a+(g.cupos||0),0);
+  const asis=by.si.reduce((a,g)=>a+(g.asistentes||0),0);
+  const cuposNo=by.no.reduce((a,g)=>a+(g.cupos||0),0);
+  const enviadas=guests.filter(g=>g.enviado||g.aperturas>0||g.respuesta).length;
+  const abiertas=guests.filter(g=>g.aperturas>0).length;
+  const sinResp=by.nuevo.length+by.enviada.length+by.abierta.length;
+  const cuposSin=[...by.nuevo,...by.enviada,...by.abierta].reduce((a,g)=>a+(g.cupos||0),0);
+  $('#stats').innerHTML=[
+    ['Invitaciones',guests.length,cupos+' cupos en total',''],
+    ['Enviadas',enviadas,(guests.length-enviadas)+' por enviar',''],
+    ['Abiertas',abiertas,enviadas?Math.round(abiertas/enviadas*100)+'% de las enviadas':'—',''],
+    ['Asistirán',asis,'personas · '+by.si.length+' invitaciones','ok'],
+    ['No asistirán',by.no.length,'invitaciones','no'],
+    ['Sin responder',sinResp,by.abierta.length+' ya la abrieron','warn']
+  ].map(s=>'<div class="stat '+s[3]+'"><small>'+s[0]+'</small><b>'+s[1]+'</b><span>'+s[2]+'</span></div>').join('');
+
+  const tot=Math.max(1,asis+cuposNo+cuposSin+by.si.reduce((a,g)=>a+Math.max(0,g.cupos-g.asistentes),0));
+  const libres=by.si.reduce((a,g)=>a+Math.max(0,(g.cupos||0)-(g.asistentes||0)),0);
+  const parts=[[asis,'var(--ok)','Confirmadas'],[cuposSin,'var(--warn)','Sin responder'],[cuposNo+libres,'var(--no)','No van / cupos liberados']];
+  $('#bar').innerHTML=parts.map(p=>'<i style="width:'+(p[0]/tot*100)+'%;background:'+p[1]+'"></i>').join('');
+  $('#legend').innerHTML=parts.map(p=>'<span style="--c:'+p[1]+'">'+p[2]+' · <b>'+p[0]+'</b></span>').join('');
+
+  const pend=guests.filter(pendiente);
+  $('#queue-lbl').textContent='Recordar pendientes ('+pend.length+')';
+  $('#queue-btn').disabled=!pend.length;
+
+  const F=[['todos','Todos',guests.length],['nuevo','Sin enviar',by.nuevo.length],['enviada','Enviada sin abrir',by.enviada.length],['abierta','Abrió sin responder',by.abierta.length],['si','Asistirán',by.si.length],['no','No asistirán',by.no.length]];
+  $('#filters').innerHTML=F.map(f=>'<button data-f="'+f[0]+'" aria-pressed="'+(filter===f[0])+'">'+f[1]+'<em>'+f[2]+'</em></button>').join('');
+
+  const q=$('#q').value.trim().toLowerCase();
+  const order={abierta:0,enviada:1,nuevo:2,si:3,no:4};
+  let rows=guests.filter(g=>(filter==='todos'||state(g)===filter) && (!q || (g.nombre+' '+g.grupo+' '+g.telefono).toLowerCase().includes(q)));
+  rows.sort((a,b)=>order[state(a)]-order[state(b)]||String(a.nombre).localeCompare(b.nombre,'es'));
+  $('#list').innerHTML=rows.length?rows.map(rowHTML).join(''):'<div class="empty">'+(guests.length?'Nadie en este filtro.':'Aún no hay invitados. Presiona <b>Agregar invitado</b> para crear el primero.')+'</div>';
+
+  const groups=[...new Set(guests.map(g=>g.grupo).filter(Boolean))];
+  $('#grupos').innerHTML=groups.map(g=>'<option value="'+esc(g)+'">').join('');
+
+  const ms=guests.filter(g=>g.mensaje).sort((a,b)=>String(b.respondido).localeCompare(String(a.respondido)));
+  $('#msgs-card').hidden=!ms.length;
+  $('#msgs').innerHTML=ms.map(g=>'<li><b>'+esc(g.nombre)+'</b>'+esc(g.mensaje)+'</li>').join('');
+}
+function rowHTML(g){
+  const s=state(g), st=ST[s];
+  const trail=[];
+  if(g.enviado) trail.push('Enviada '+fdate(g.enviado));
+  if(g.aperturas>0) trail.push('Abierta '+g.aperturas+(g.aperturas===1?' vez':' veces')+' · última '+fdate(g.abierta_ultima));
+  if(g.recordatorios>0) trail.push(g.recordatorios+(g.recordatorios===1?' recordatorio':' recordatorios'));
+  if(g.respondido) trail.push('Respondió '+fdate(g.respondido));
+  const sendLbl=g.enviado?'Reenviar':'Enviar';
+  const canWA=!!g.telefono;
+  let acts='';
+  if(s==='nuevo') acts+='<button class="btn sm wa" data-a="send" '+(canWA?'':'disabled title="Falta el celular"')+'>Enviar invitación</button>';
+  else if(s==='enviada'||s==='abierta') acts+='<button class="btn sm wa" data-a="rem" '+(canWA?'':'disabled title="Falta el celular"')+'>Recordar</button><button class="btn sm" data-a="send" '+(canWA?'':'disabled')+'>'+sendLbl+'</button>';
+  acts+='<button class="btn sm" data-a="copy">Copiar enlace</button><a class="btn sm" href="'+esc(link(g))+'.ver" target="_blank" rel="noopener" title="Ver sin contar como apertura">Ver</a><button class="btn sm" data-a="edit">Editar</button><button class="btn sm danger" data-a="del">Eliminar</button>';
+  return '<div class="row" data-id="'+esc(g.id)+'">'+
+    '<div><div class="nm">'+esc(g.nombre)+'</div><div class="meta">'+[g.grupo,prettyPhone(g.telefono)||'sin celular',g.mesa?'Mesa '+g.mesa:''].filter(Boolean).map(esc).join(' · ')+'</div></div>'+
+    '<div class="cup"><b>'+(s==='si'?g.asistentes+'/'+g.cupos:(g.cupos||'—'))+'</b><small>'+(s==='si'?'van':'cupos')+'</small></div>'+
+    '<div><span class="pill" style="--c:'+st.c+';--c-bg:'+st.bg+'">'+st.t+'</span>'+(trail.length?'<div class="trail">'+esc(trail.join(' · '))+'</div>':'')+(g.mensaje?'<div class="msg">“'+esc(g.mensaje)+'”</div>':'')+'</div>'+
+    '<div class="acts">'+acts+'</div></div>';
+}
+
+/* ---------- eventos lista ---------- */
+$('#filters').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; filter=b.dataset.f; render();});
+$('#q').addEventListener('input',render);
+$('#refresh').onclick=()=>load();
+$('#list').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]'); if(!b) return;
+  const id=b.closest('.row').dataset.id, g=guests.find(x=>x.id===id); if(!g) return;
+  const a=b.dataset.a;
+  if(a==='send'||a==='rem'){ openWA(wa(g,a==='rem'?'rec':'inv')); mark(g,a==='rem'?'recordado':'enviado'); }
+  if(a==='copy'){ const t=link(g); try{ await navigator.clipboard.writeText(t); toast('Enlace copiado'); }catch(x){ prompt2(t); } }
+  if(a==='edit') openGuest(g);
+  if(a==='del'){
+    if(b.dataset.sure){ try{ await call({action:'delete',id}); guests=guests.filter(x=>x.id!==id); render(); toast('Invitado eliminado'); }catch(x){ toast('No se pudo eliminar'); } }
+    else { b.dataset.sure='1'; b.textContent='¿Seguro? Toca otra vez'; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.sure; b.textContent='Eliminar'; } },3500); }
+  }
+});
+function prompt2(t){ const i=document.createElement('input'); i.value=t; document.body.appendChild(i); i.select(); try{document.execCommand('copy');toast('Enlace copiado');}catch(x){toast(t);} i.remove(); }
+async function mark(g,what){
+  try{ const r=await call({action:'mark',id:g.id,what}); upsert(r.guest); render(); toast(what==='enviado'?'Marcada como enviada':'Recordatorio registrado'); }
+  catch(x){ toast('No se pudo registrar el envío'); }
+}
+
+/* ---------- modales ---------- */
+function openM(id){ $(id).hidden=false; const f=$(id).querySelector('input,textarea'); if(f) setTimeout(()=>f.focus(),30); }
+function closeM(){ $$('.modal').forEach(m=>m.hidden=true); }
+$$('[data-close]').forEach(b=>b.onclick=closeM);
+$$('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) closeM(); }));
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeM(); });
+
+function openGuest(g){
+  editing=g||null; $('#g-err').hidden=true;
+  $('#g-title').textContent=g?'Editar invitado':'Agregar invitado';
+  $('#g-nombre').value=g?g.nombre:''; $('#g-tel').value=g?prettyPhone(g.telefono):''; $('#g-cupos').value=g?g.cupos:2; $('#g-grupo').value=g?g.grupo:''; $('#g-mesa').value=g?g.mesa:'';
+  $('#g-savesend').hidden=!!(g&&g.enviado);
+  openM('#m-guest');
+}
+$('#add').onclick=()=>openGuest(null);
+async function saveGuest(send){
+  const data={id:editing?editing.id:'',nombre:$('#g-nombre').value.trim(),telefono:$('#g-tel').value,cupos:$('#g-cupos').value,grupo:$('#g-grupo').value.trim(),mesa:$('#g-mesa').value.trim()};
+  if(!data.nombre){ $('#g-err').textContent='Escribe el nombre del invitado.'; $('#g-err').hidden=false; return; }
+  if(send && !phone57(data.telefono)){ $('#g-err').textContent='Para enviar por WhatsApp hace falta el celular.'; $('#g-err').hidden=false; return; }
+  const w=send?window.open('about:blank','_blank'):null;
+  try{
+    const r=await call({action:'save',guest:data}); upsert(r.guest); closeM(); render();
+    if(send){ const url=wa(r.guest,'inv'); if(w) w.location=url; else openWA(url); mark(r.guest,'enviado'); }
+    else toast(editing?'Cambios guardados':'Invitado agregado');
+  }catch(x){ if(w) w.close(); $('#g-err').textContent='No se pudo guardar. Revisa la conexión.'; $('#g-err').hidden=false; }
+}
+$('#gform').addEventListener('submit',e=>{e.preventDefault();saveGuest(false);});
+$('#g-savesend').onclick=()=>saveGuest(true);
+
+/* varios */
+function parseMany(){
+  return $('#m-text').value.split(/\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=l.split(/\t|,|;/).map(s=>s.trim());
+    return {nombre:p[0]||'',telefono:p[1]||'',cupos:p[2]||1,grupo:p[3]||''};
+  }).filter(g=>g.nombre);
+}
+$('#addmany').onclick=()=>{ $('#m-text').value=''; $('#m-prev').textContent=''; openM('#m-many'); };
+$('#m-text').addEventListener('input',()=>{ const n=parseMany(); $('#m-prev').textContent=n.length?n.length+' invitados listos para agregar · '+n.reduce((a,g)=>a+(Number(g.cupos)||1),0)+' cupos':''; });
+$('#mform').addEventListener('submit',async e=>{
+  e.preventDefault(); const list=parseMany(); if(!list.length) return;
+  $('#m-save').disabled=true;
+  try{ const r=await call({action:'bulk',guests:list}); r.guests.forEach(upsert); closeM(); render(); toast(r.guests.length+' invitados agregados'); }
+  catch(x){ toast('No se pudieron agregar. Revisa la conexión.'); }
+  $('#m-save').disabled=false;
+});
+
+/* cola de recordatorios */
+let qList=[], qi=0;
+function qRender(){
+  const g=qList[qi];
+  if(!g){ $('#q-box').innerHTML='<b>¡Listo!</b><p class="hint" style="margin-top:6px">Ya recorriste todos los pendientes.</p>'; $('#q-go').hidden=true; $('#q-skip').hidden=true; return; }
+  $('#q-go').hidden=false; $('#q-skip').hidden=false;
+  $('#q-box').innerHTML='<div class="hint">'+(qi+1)+' de '+qList.length+'</div><b>'+esc(g.nombre)+'</b><div class="hint">'+esc(prettyPhone(g.telefono))+' · '+ST[state(g)].t+(g.recordatorios?' · ya se le recordó '+g.recordatorios+(g.recordatorios===1?' vez':' veces'):'')+'</div>';
+}
+$('#queue-btn').onclick=()=>{ qList=guests.filter(pendiente).sort((a,b)=>(b.aperturas>0)-(a.aperturas>0)); qi=0; qRender(); openM('#m-queue'); };
+$('#q-go').onclick=()=>{ const g=qList[qi]; openWA(wa(g,'rec')); mark(g,'recordado'); qi++; qRender(); };
+$('#q-skip').onclick=()=>{ qi++; qRender(); };
+
+/* plantillas */
+$('#tpl').onclick=()=>{ $('#t-inv').value=TPL.inv; $('#t-rec').value=TPL.rec; openM('#m-tpl'); };
+$('#t-reset').onclick=()=>{ $('#t-inv').value=TPL_DEF.inv; $('#t-rec').value=TPL_DEF.rec; };
+$('#tform').addEventListener('submit',e=>{ e.preventDefault(); TPL={inv:$('#t-inv').value,rec:$('#t-rec').value}; try{localStorage.setItem('boda-cd-tpl',JSON.stringify(TPL));}catch(x){} closeM(); toast('Mensajes guardados'); });
+
+/* exportar */
+$('#export').onclick=()=>{
+  const cols=[['nombre','Nombre'],['telefono','Celular'],['grupo','Grupo'],['mesa','Mesa'],['cupos','Cupos'],['estado','Estado'],['asistentes','Asistirán'],['aperturas','Aperturas'],['enviado','Enviada'],['respondido','Respondió'],['mensaje','Mensaje'],['enlace','Enlace']];
+  const rows=guests.map(g=>Object.assign({},g,{estado:ST[state(g)].t,enlace:link(g),enviado:fdate(g.enviado),respondido:fdate(g.respondido)}));
+  const csv='\ufeff'+[cols.map(c=>c[1]).join(';')].concat(rows.map(r=>cols.map(c=>'"'+String(r[c[0]]==null?'':r[c[0]]).replace(/"/g,'""')+'"').join(';'))).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='invitados-camilo-doralice.csv'; document.body.appendChild(a); a.click(); a.remove();
+};
+
+$('#resetdemo').onclick=()=>{ API.resetDemo(); load(); };
+setInterval(()=>{ if(!$('#app').hidden && document.visibilityState==='visible' && $$('.modal').every(m=>m.hidden)) load(true); },60000);
+})();
+</script>
+</body>
+</html>
